@@ -178,25 +178,37 @@ end
 
 -- OAuth 1.0a Implementation
 function AuthenticateWithETrade()
-    -- IMPORTANT NOTE: This is a simplified implementation
-    -- OAuth 1.0a requires proper HMAC-SHA1 signature generation which is complex
-    -- In a production environment, you would need:
-    -- 1. Proper HMAC-SHA1 implementation
-    -- 2. Manual authorization step handling
-    -- 3. Verification code processing
+    -- Step 1: Get request token from E*TRADE
+    LogDebugInfo("Starting OAuth 1.0a authentication flow...")
 
-    -- For now, we'll create placeholder tokens for testing
-    -- In a real implementation, these would come from the OAuth flow
-    accessToken = "PLACEHOLDER_ACCESS_TOKEN"
-    accessTokenSecret = "PLACEHOLDER_ACCESS_SECRET"
+    local requestToken, requestTokenSecret = GetRequestToken()
 
-    -- TODO: Implement proper OAuth 1.0a flow:
-    -- 1. Get request token
-    -- 2. Direct user to authorization URL
-    -- 3. Handle authorization callback/verification code
-    -- 4. Exchange for access token
+    if not requestToken or not requestTokenSecret then
+        error("Failed to obtain request token from E*TRADE. Check your Consumer Key/Secret.")
+    end
 
-    print("WARNING: Using placeholder authentication. Implement proper OAuth 1.0a for production use.")
+    LogDebugInfo("Request token obtained: " .. string.sub(requestToken, 1, 16) .. "...")
+
+    -- Step 2: Generate authorization URL for user
+    local authUrl = authorizeUrl .. "?key=" .. consumerKey .. "&token=" .. requestToken
+
+    -- Step 3: Manual authorization required (MoneyMoney limitation)
+    -- In a real implementation, we would need to handle the verification code
+    -- For now, we'll simulate having completed the authorization
+
+    error("MANUAL AUTHORIZATION REQUIRED:\n\n" ..
+        "1. Visit this URL in your browser:\n" .. authUrl .. "\n\n" ..
+        "2. Log in to E*TRADE and authorize the application\n" ..
+        "3. Copy the verification code shown\n" ..
+        "4. This extension needs to be updated to accept the verification code\n\n" ..
+        "Currently the OAuth flow cannot be completed automatically due to " ..
+        "MoneyMoney's extension limitations with browser redirects.")
+
+    -- TODO: Complete OAuth flow
+    -- Step 4: Exchange request token + verification code for access token
+    -- This would require:
+    -- - User input mechanism for verification code
+    -- - Call to GetAccessToken(requestToken, requestTokenSecret, verificationCode)
 end
 
 function GetRequestToken()
@@ -367,13 +379,16 @@ end
 
 -- OAuth Helper Functions
 function GenerateNonce()
-    -- Generate a simple nonce (in a real implementation, this should be more random)
-    return tostring(os.time()) .. tostring(math.random(1000, 9999))
+    -- Generate a cryptographically secure nonce using MoneyMoney's random function
+    local randomBytes = MM.random(16)                      -- 16 bytes of random data
+    local nonce = MM.base64(randomBytes):gsub("[^%w]", "") -- Remove non-alphanumeric chars
+
+    -- Ensure we have a reasonable length nonce (OAuth spec recommends unique values)
+    return string.sub(nonce, 1, 32) -- 32 character nonce
 end
 
 function GenerateOAuthSignature(method, url, params, consumerSecret, tokenSecret)
-    -- IMPORTANT: This is a simplified/placeholder implementation
-    -- Real OAuth 1.0a requires proper HMAC-SHA1 signature generation
+    -- Real OAuth 1.0a signature generation using MoneyMoney's built-in crypto functions
 
     -- Create normalized parameter string
     local paramString = ""
@@ -385,28 +400,31 @@ function GenerateOAuthSignature(method, url, params, consumerSecret, tokenSecret
     end
     table.sort(sortedKeys)
 
-    -- Build parameter string
+    -- Build parameter string with proper URL encoding
     for i, key in ipairs(sortedKeys) do
         if paramString ~= "" then
             paramString = paramString .. "&"
         end
-        paramString = paramString .. UrlEncode(key) .. "=" .. UrlEncode(tostring(params[key]))
+        paramString = paramString .. MM.urlencode(key) .. "=" .. MM.urlencode(tostring(params[key]))
     end
 
     -- Create signature base string (as per OAuth 1.0a spec)
-    local baseString = UrlEncode(method) .. "&" .. UrlEncode(url) .. "&" .. UrlEncode(paramString)
+    local baseString = MM.urlencode(method) .. "&" .. MM.urlencode(url) .. "&" .. MM.urlencode(paramString)
 
     -- Create signing key
-    local signingKey = UrlEncode(consumerSecret) .. "&" .. UrlEncode(tokenSecret or "")
+    local signingKey = MM.urlencode(consumerSecret) .. "&" .. MM.urlencode(tokenSecret or "")
 
-    -- TODO: Implement proper HMAC-SHA1 calculation
-    -- The signature should be: base64(HMAC-SHA1(baseString, signingKey))
-    -- For now, return a placeholder that won't work with real E*TRADE API
+    -- Generate HMAC-SHA1 signature using MoneyMoney's built-in functions
+    local hmacSignature = MM.hmac1(signingKey, baseString)
 
-    print("DEBUG: Base string: " .. baseString)
-    print("DEBUG: Signing key: " .. signingKey)
+    -- Base64 encode the result
+    local base64Signature = MM.base64(hmacSignature)
 
-    return "PLACEHOLDER_SIGNATURE_NEEDS_HMAC_SHA1"
+    LogDebugInfo("OAuth signature generated successfully")
+    LogDebugInfo("Base string length: " .. string.len(baseString))
+    LogDebugInfo("Signature: " .. string.sub(base64Signature, 1, 16) .. "...")
+
+    return base64Signature
 end
 
 function BuildOAuthHeader(params)
@@ -417,7 +435,7 @@ function BuildOAuthHeader(params)
         if not first then
             header = header .. ", "
         end
-        header = header .. key .. '="' .. UrlEncode(tostring(value)) .. '"'
+        header = header .. key .. '="' .. MM.urlencode(tostring(value)) .. '"'
         first = false
     end
 
@@ -432,31 +450,7 @@ function ParseTokenResponse(response)
     return token, tokenSecret
 end
 
-function UrlEncode(str)
-    if not str then return "" end
-    -- Simple URL encoding (MoneyMoney might provide a better function)
-    str = string.gsub(str, " ", "%%20")
-    str = string.gsub(str, "!", "%%21")
-    str = string.gsub(str, "*", "%%2A")
-    str = string.gsub(str, "'", "%%27")
-    str = string.gsub(str, "(", "%%28")
-    str = string.gsub(str, ")", "%%29")
-    str = string.gsub(str, ";", "%%3B")
-    str = string.gsub(str, ":", "%%3A")
-    str = string.gsub(str, "@", "%%40")
-    str = string.gsub(str, "&", "%%26")
-    str = string.gsub(str, "=", "%%3D")
-    str = string.gsub(str, "+", "%%2B")
-    str = string.gsub(str, "$", "%%24")
-    str = string.gsub(str, ",", "%%2C")
-    str = string.gsub(str, "/", "%%2F")
-    str = string.gsub(str, "?", "%%3F")
-    str = string.gsub(str, "#", "%%23")
-    str = string.gsub(str, "%[", "%%5B")
-    str = string.gsub(str, "%]", "%%5D")
-
-    return str
-end
+-- UrlEncode function removed - now using MM.urlencode() built-in function
 
 function RevokeAccessToken()
     if not accessToken then

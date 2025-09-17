@@ -14,8 +14,8 @@ This extension is currently a **working prototype** that demonstrates the MoneyM
 - ✅ Comprehensive error handling and debug logging
 
 ### What's Missing ❌
-- ❌ **OAuth 1.0a HMAC-SHA1 signature generation** (most critical)
-- ❌ OAuth authorization callback handling
+- ✅ **OAuth 1.0a HMAC-SHA1 signature generation** (IMPLEMENTED!)
+- ❌ OAuth authorization callback handling (manual intervention required)
 - ❌ Real E*TRADE API endpoint integration
 - ❌ Production environment support
 
@@ -113,13 +113,15 @@ MoneyMoney will prompt for two fields:
 
 ### For Production Use, Implement:
 
-#### 1. OAuth Signature Generation ⭐ **CRITICAL**
-```lua
--- Current placeholder in ETrade.lua line ~370:
-return "PLACEHOLDER_SIGNATURE_NEEDS_HMAC_SHA1"
+#### 1. OAuth Authorization Flow ⭐ **NOW HIGHEST PRIORITY**
+**GOOD NEWS:** OAuth signature generation is now implemented using MoneyMoney's built-in crypto functions!
 
--- Needs proper HMAC-SHA1 implementation:
-return base64(hmac_sha1(baseString, signingKey))
+**REMAINING:** Handle user authorization manually:
+```lua
+-- Current status: Shows authorization URL to user
+error("MANUAL AUTHORIZATION REQUIRED:\n" ..
+      "Visit: " .. authUrl .. "\n" ..
+      "Get verification code and update extension")
 ```
 
 #### 2. Real E*TRADE API Endpoints
@@ -128,10 +130,11 @@ return base64(hmac_sha1(baseString, signingKey))
   - Add `/v1/account/{accountIdKey}/balance`
   - Add `/v1/account/{accountIdKey}/transactions`
 
-#### 3. OAuth Authorization Flow
-- Implement user authorization callback mechanism
-- Handle verification code processing
-- Add proper token storage and renewal
+#### 3. OAuth Authorization Flow  
+- ✅ **HMAC-SHA1 signature generation** (implemented with MM.hmac1)
+- ❌ User authorization callback mechanism  
+- ❌ Verification code processing
+- ❌ Proper token storage and renewal
 
 #### 4. Production Environment
 - Switch from sandbox (`apisb.etrade.com`) to production (`api.etrade.com`)
@@ -145,7 +148,8 @@ return base64(hmac_sha1(baseString, signingKey))
 - **Functions:** `SupportsBank`, `InitializeSession`, `ListAccounts`, `RefreshAccount`, `EndSession`
 
 ### E*TRADE API Integration
-- **Authentication:** OAuth 1.0a
+- **Authentication:** OAuth 1.0a with HMAC-SHA1 signatures
+- **Crypto Functions:** MoneyMoney built-ins (`MM.hmac1`, `MM.base64`, `MM.urlencode`)
 - **Environment:** Sandbox (apisb.etrade.com)
 - **Format:** JSON responses
 - **Version:** API v1
