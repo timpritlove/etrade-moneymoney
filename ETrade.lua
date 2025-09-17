@@ -18,7 +18,7 @@
 -- 5. Add comprehensive error handling
 --
 -- USAGE:
--- Username: E*TRADE username
+-- Username: Your E*TRADE username
 -- Password: Consumer Key and Consumer Secret separated by "|"
 --           Format: "CONSUMER_KEY|CONSUMER_SECRET"
 --           Example: "abc123def456|xyz789secret123"
@@ -59,7 +59,7 @@ WebBanking {
 -- Global variables for OAuth and session management
 local consumerKey
 local consumerSecret
-local username
+local userAccount
 local accessToken
 local accessTokenSecret
 local accountList
@@ -79,8 +79,9 @@ function SupportsBank(protocol, bankCode)
     return protocol == ProtocolWebBanking and bankCode == "E*TRADE Account"
 end
 
-function InitializeSession(protocol, bankCode, user, username2, password, username3)
-    username = user
+function InitializeSession(protocol, bankCode, username, reserved, password)
+    -- Store username parameter in global variable for other functions to use
+    userAccount = username
 
     -- Parse the password field which contains "CONSUMER_KEY|CONSUMER_SECRET"
     if not password or password == "" then
@@ -95,7 +96,7 @@ function InitializeSession(protocol, bankCode, user, username2, password, userna
     consumerKey = string.sub(password, 1, separatorPos - 1)
     consumerSecret = string.sub(password, separatorPos + 1)
 
-    LogDebugInfo("Initializing E*TRADE session for user: " .. tostring(username))
+    LogDebugInfo("Initializing E*TRADE session for user: " .. tostring(userAccount))
     LogDebugInfo("Consumer Key: " .. string.sub(consumerKey, 1, 8) .. "..." .. string.sub(consumerKey, -4))
 
     -- Validate all required credentials
@@ -127,8 +128,8 @@ function ListAccounts(knownAccounts)
         if responseData and responseData.AlertsResponse then
             -- Create a general E*TRADE account for now
             local account = {
-                name = "E*TRADE Account (" .. username .. ")",
-                accountNumber = username,
+                name = "E*TRADE Account (" .. userAccount .. ")",
+                accountNumber = userAccount,
                 type = AccountTypeGiro,
                 currency = "USD"
             }
@@ -139,8 +140,8 @@ function ListAccounts(knownAccounts)
     -- If API call fails, still provide a default account for testing
     if #accounts == 0 then
         local account = {
-            name = "E*TRADE Account (" .. username .. ")",
-            accountNumber = username,
+            name = "E*TRADE Account (" .. userAccount .. ")",
+            accountNumber = userAccount,
             type = AccountTypeGiro,
             currency = "USD"
         }
@@ -172,6 +173,7 @@ function EndSession()
     accessTokenSecret = nil
     consumerKey = nil
     consumerSecret = nil
+    userAccount = nil
 end
 
 -- OAuth 1.0a Implementation
@@ -497,7 +499,7 @@ function ValidateCredentials()
         error("Missing Consumer Secret. Please check your password format: CONSUMER_KEY|CONSUMER_SECRET")
     end
 
-    if not username or username == "" then
+    if not userAccount or userAccount == "" then
         error("Missing Username. Please provide your E*TRADE username in the Username field.")
     end
 
@@ -537,9 +539,9 @@ SETUP REQUIREMENTS:
 2. MoneyMoney Configuration
    - Place this file in MoneyMoney's Extensions directory
    - Add a new account with "E*TRADE Account" as the bank
-   - Fill in the following fields:
+   - Fill in the credential fields:
      * Username: Your E*TRADE username
-     * Password: Consumer Key and Secret in format "KEY|SECRET"
+     * Password: "CONSUMER_KEY|CONSUMER_SECRET"
        Example: "c5bb4dcb7bd6826c7c4340df3f791188|7d30246211192cda43ede3abd9b393b9"
 
 LIMITATIONS:
